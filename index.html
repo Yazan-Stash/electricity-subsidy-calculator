@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+  	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>إحسب قيمة الدعم على فاتورتك | Yazan Stash</title>
+	<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+	<link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Cairo&display=swap" rel="stylesheet">
+</head>
+<body style="font-family: 'Cairo', sans-serif;">
+	<div id="app">
+		<div class="container w-full mx-auto">
+			<div class="flex justify-center">
+				<div class="w-1/2 h-16 mt-32" v-if="! showingResults">
+					<p class="text-right text-gray-500">إخلاء مسؤلية: هذا البرنامج لغايات التوضيح فقط ولا يتحمل المؤلف اي مسؤولية نتيجة سوء الإستخدام. يمكنك الاطلاع على الكود <a class="text-blue-400" href="https://github.com/Yazan-Stash/green-check">هنا.</a></p>
+
+					<p class="mt-8 text-right text-gray-700">إحسب قيمة الدعم على فاتورتك من خلال إدخال قيمة استهلاك الكيلو-واط بالساعة لترى قيمة الدعم وإذا كان من الأوفر عدم التقديم للدعم</p>
+
+					<div class="mt-8 text-right">
+						<label class="text-right" for="kwh">كمية الإستهلاك (ك.و.س)</label>
+						<input type="text" id="kwh" class="mt-4 w-full h-16 p-4 border rounded-lg" style="text-align: right; direction: rtl;" v-model:value="kwh" placeholder="كمية الإستهلاك (ك.و.س)">
+
+						<p v-if="error" v-text="error" class="mt-4 text-red-400"></p>						
+					</div>
+
+					<div class="w-1/4 mx-auto">
+						<button v-on:click.prevent="calculate()" class="mt-16 w-full mt-4 py-4 text-xl text-white text-center bg-green-500 rounded-lg">إحسب</button>
+					</div>
+				</div>
+				
+			</div>
+
+			<div v-if="showingResults" class="pt-8">
+				<div class="flex justify-center">
+				  <div class="w-1/2 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+				    <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
+				      <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
+				        <table class="min-w-full divide-y divide-gray-200">
+				          <thead class="bg-gray-50">
+				            <tr>
+				              <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+				                قيمة الفتورة
+				              </th>
+				              <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+				                التعرفة
+				              </th>
+				            </tr>
+				          </thead>
+				          <tbody class="bg-white divide-y divide-gray-200">
+				            <tr>
+				              <td class="px-6 py-4 whitespace-nowrap">
+			                    <div class="text-sm text-right font-medium text-gray-900">
+			                      دينار {{ calculatedCosts.old / 1000 }}
+			                    </div>
+				              </td>
+				              <td class="px-6 py-4 whitespace-nowrap">
+				                <div class="text-sm text-right text-gray-900">القديمة</div>
+				              </td>
+				            </tr>
+				            <tr>
+				              <td class="px-6 py-4 whitespace-nowrap">
+			                    <div class="text-sm text-right font-medium text-gray-900">
+			                      <span v-if="calculatedCosts.subsidized < calculatedCosts.unsubsidized" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    الأوفر
+                                  </span>
+			                      دينار {{ calculatedCosts.subsidized / 1000 }}
+			                    </div>
+				              </td>
+				              <td class="px-6 py-4 whitespace-nowrap">
+				                <div class="text-sm text-right text-gray-900">المدعومة</div>
+				              </td>
+				            </tr>
+				            <tr>
+				              <td class="px-6 py-4 whitespace-nowrap">
+			                    <div class="text-sm text-right font-medium text-gray-900">
+			                      <span v-if="calculatedCosts.unsubsidized < calculatedCosts.subsidized" class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                    الأوفر
+                                  </span>
+			                       دينار {{ calculatedCosts.unsubsidized / 1000 }}
+			                    </div>
+				              </td>
+				              <td class="px-6 py-4 whitespace-nowrap">
+				                <div class="text-sm text-right text-gray-900">الغير مدعومة</div>
+				              </td>
+				            </tr>
+				          </tbody>
+				        </table>
+				      </div>
+				    </div>
+				  </div>
+				</div>
+			</div>
+		</div>
+	</div>
+<script>
+	var app = new Vue({
+	  el: '#app',
+	  data: {
+	  	showingResults: false,
+	  	kwh: null,
+	    error: null,
+	    calculatedCosts: {},
+	    plans: {
+	    	"old": {
+	    		"160": 33,
+	    		"300": 72,
+	    		"500": 86,
+	    		"600": 114,
+	    		"750": 158,
+	    		"1000": 188,
+	    		"1001": 265,
+	    	},
+	    	"subsidized": {
+	    		"300": 50,
+	    		"600": 100,
+	    		"601": 200,
+	    	},
+	    	"unsubsidized": {
+	    		"1000": 120,
+	    		"1001": 150
+	    	}
+	    }
+	  },
+	  methods: {
+	    calculate(e) {
+	    	if (! this.isInt(this.kwh)) {
+	    		this.error = "الكمية يجب ان تكون عدد صحيح"
+	    		return
+	    	}
+
+	    	this.kwh = Number.parseInt(this.kwh)
+
+	    	this.calculatedCosts["old"] = this.calculateUsageCosts("old")
+	    	this.calculatedCosts["subsidized"] = this.calculateUsageCosts("subsidized")
+	    	this.calculatedCosts["unsubsidized"] = this.calculateUsageCosts("unsubsidized")
+
+	    	this.showingResults = true
+	    },
+	    calculateUsageCosts(plan) {
+	    	return this.calculateKwsCost(this.kwh, this.plans[plan]) - this.calculateAdditionalSubsidy(plan)
+	    },
+	    calculateKwsCost(usage, thresholds) {
+	    	cost = 0
+
+	    	while (usage > 0) {
+	    		threshold = Number.parseInt(Object.keys(thresholds)[0])
+	    		price = thresholds[Object.keys(thresholds)[0]]
+
+	    		if (usage > threshold && Object.keys(thresholds).length != 0) {
+	    			cost += (threshold * price)
+	    			usage -= threshold
+	    			delete thresholds[Object.keys(thresholds)[0]]
+	    		} else {
+	    			cost += (usage * price)
+	    			break
+	    		}
+	    	}
+
+	    	return cost
+	    },
+	    calculateAdditionalSubsidy(plan) {
+	    	if (plan != "subsidized") {
+	    		return 0
+	    	}
+
+	    	if (this.kwh >= 51 && this.kwh <= 200) {
+	    		return 2500;
+	    	} else if (this.kwh <= 600) {
+	    		return 2000;
+	    	} else {
+	    		return 0
+	    	}
+	    },
+	    isInt(value) {
+	      	return !isNaN(value) && (function(x) { return (x | 0) === x; })(parseFloat(value));
+	    }
+	  }
+	})
+</script>
+</body>
+</html>
